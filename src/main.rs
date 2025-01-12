@@ -1,7 +1,6 @@
 use colored::Colorize;
 use std::fs::File;
 use std::io::{self, Read};
-use std::str;
 
 /// Turn a byte into its colored,
 /// 2-digit hex representation
@@ -10,8 +9,6 @@ fn color_hex(byte: u8) -> String {
     // https://doc.rust-lang.org/std/fmt/#sign
     let formatted_byte = format!("{:02x}", byte);
 
-    // https://www.marcusfolkesson.se/til/xxd-color-support
-    //
     // https://github.com/vim/vim/blob/master/src/xxd/xxd.c
     // -- snip --
     //       #if defined(__MVS__) && __CHARSET_LIB == 0
@@ -40,6 +37,25 @@ fn color_hex(byte: u8) -> String {
     }
 }
 
+/// Turns a byte into its colored
+/// text representation like in `xxd`
+fn color_text(byte: u8) -> String {
+    // https://www.marcusfolkesson.se/til/xxd-color-support
+    let c = match byte {
+        31..127 => char::from(byte),
+        _ => '.',
+    }
+    .to_string();
+
+    match byte {
+        31..127 => c.green().to_string(),
+        9 | 10 | 13 => c.yellow().to_string(),
+        0 => c.white().to_string(),
+        255 => c.blue().to_string(),
+        _ => c.red().to_string(),
+    }
+}
+
 fn main() -> io::Result<()> {
     let mut file = match File::open("light_brigade.txt") {
         Ok(file) => file,
@@ -65,8 +81,7 @@ fn main() -> io::Result<()> {
         // ... 4861 6c66 2061 206c 6561 6775 652c 2068 ...
         let mut hex = String::new();
 
-        for i in 0..bytes_read {
-            let byte = &buffer[i];
+        for (i, byte) in buffer.iter().enumerate().take(bytes_read) {
             hex.push_str(&color_hex(*byte));
 
             if i % 2 != 0 {
@@ -89,16 +104,9 @@ fn main() -> io::Result<()> {
 
         // ... Half a league, h
         let mut text = String::new();
-        for byte in buffer {
-            let s = match byte {
-                31..127 => char::from(byte).to_string().green(),
-                9 | 10 | 13 => ".".yellow(),
-                0 => char::from(byte).to_string().white(),
-                255 => char::from(byte).to_string().blue(),
-                _ => ".".red(),
-            };
 
-            text.push_str(&s.to_string());
+        for byte in buffer.iter().take(bytes_read) {
+            text.push_str(&color_text(*byte));
         }
 
         println!("{}", text);
