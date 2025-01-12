@@ -43,22 +43,30 @@ fn color_hex(byte: u8) -> String {
 fn main() -> io::Result<()> {
     let mut file = match File::open("light_brigade.txt") {
         Ok(file) => file,
-        Err(err) => panic!("{}", err),
+        Err(err) => panic!("Failed to open file: {}", err),
     };
 
     let mut buffer = [0u8; 16];
     let mut offset: usize = 0;
 
+    // Loop for printing output. Looks like:
+    // 00000000: 4861 6c66 2061 206c 6561 6775 652c 2068  Half a league, h
+    // ∟ offset  ∟ hex                                    ∟ text
     loop {
         let bytes_read = file.read(&mut buffer)?;
         if bytes_read == 0 {
             break;
         }
+
+        // 00000000: ...
+        print!("{:08x}: ", offset);
         offset += buffer.len();
 
+        // ... 4861 6c66 2061 206c 6561 6775 652c 2068 ...
         let mut hex = String::new();
 
-        for (i, byte) in buffer.iter().enumerate() {
+        for i in 0..bytes_read {
+            let byte = &buffer[i];
             hex.push_str(&color_hex(*byte));
 
             if i % 2 != 0 {
@@ -66,19 +74,34 @@ fn main() -> io::Result<()> {
             }
         }
 
+        // Filling whitespace
         let bytes_unread: usize = buffer.len() - bytes_read;
-        for _ in 1..bytes_unread {
+        for i in 0..bytes_unread {
             hex.push(' ');
+            hex.push(' ');
+
+            if i % 2 != 0 {
+                hex.push(' ');
+            }
         }
 
         print!("{} ", hex);
 
-        let text = str::from_utf8(&buffer)
-            .unwrap()
-            .trim_start()
-            .trim_end()
-            .replace(" ", ".");
-        // println!("{}", text);
+        // ... Half a league, h
+        let mut text = String::new();
+        for byte in buffer {
+            let s = match byte {
+                31..127 => char::from(byte).to_string().green(),
+                9 | 10 | 13 => ".".yellow(),
+                0 => char::from(byte).to_string().white(),
+                255 => char::from(byte).to_string().blue(),
+                _ => ".".red(),
+            };
+
+            text.push_str(&s.to_string());
+        }
+
+        println!("{}", text);
     }
 
     Ok(())
