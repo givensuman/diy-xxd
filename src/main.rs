@@ -56,11 +56,37 @@ fn color_text(byte: u8) -> String {
     }
 }
 
-fn main() -> io::Result<()> {
-    let mut file = match File::open("light_brigade.txt") {
-        Ok(file) => file,
-        Err(err) => panic!("Failed to open file: {}", err),
+/// Read file from argument in std::env::args
+/// Handles errors internally
+fn get_file_from_args() -> File {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() != 2 {
+        eprintln!("too many arguments");
+        eprintln!("usage: xxd <filename>");
+        std::process::exit(1);
+    }
+
+    let filename = match args.get(1) {
+        Some(filename) => filename.clone(),
+        None => {
+            eprintln!("file {} not found", args.get(1).unwrap());
+            eprintln!("usage: xxd <filename>");
+            std::process::exit(1);
+        }
     };
+
+    match File::open(&filename) {
+        Ok(file) => file,
+        Err(_) => {
+            eprintln!("error opening file {}", filename);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn main() -> io::Result<()> {
+    let mut file = get_file_from_args();
 
     let mut buffer = [0u8; 16];
     let mut offset: usize = 0;
